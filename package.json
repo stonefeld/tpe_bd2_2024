@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "name": "tpe_bd2_2024",
   "version": "1.0.0",
   "main": "index.js",
