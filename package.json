@@ -1,0 +1,16 @@
+{
+  "name": "tpe_bd2_2024",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "mongodb": "6.10",
+    "redis": "^4.7.0"
+  }
+}
