@@ -3,6 +3,7 @@ import {
   generateFacturas,
   generateClientes,
   generateProductos,
+  insertClientRedis,
 } from "./data.js";
 
 // 0. Cargar los datos a la base de datos.
@@ -46,12 +47,10 @@ async function clientAndCellphones() {
       .toArray();
 
     for (const client of result) {
-      await redis.hSet(`clientes:${client.nro_cliente}`, client);
+      await insertClientRedis(client, redis);
     }
 
-    // TODO: Revisar si agregamos al set clientes:names:<nombre> = id
-
-    console.log(result);
+    console.log(JSON.stringify(result, null, 2));
   } finally {
     await mongo.close();
     await redis.quit();
@@ -77,19 +76,7 @@ async function findJacobCooper() {
         { projection: { _id: 0 } }
       );
       if (result) {
-        clientID = result.nro_cliente;
-        await redis.set("clientes:names:JacobCooper", clientID);
-
-        const key = `clientes:${clientID}`;
-        if (!(await redis.get(key))) {
-          const telefonos = result.telefonos;
-          delete result.telefonos;
-          await redis.hSet(key, result);
-          for (const [index, telefono] of telefonos.entries()) {
-            const key = `clientes:${clientID}:telefonos:${index}`;
-            await redis.hSet(key, telefono);
-          }
-        }
+        await insertClientRedis(result, redis);
       } else {
         console.log("No se encontró el cliente");
         return;
@@ -115,5 +102,5 @@ async function findJacobCooper() {
 }
 
 await loadData().catch(console.dir);
-// clientAndCellphones().catch(console.dir);
-await findJacobCooper().catch(console.dir);
+await clientAndCellphones().catch(console.dir);
+// await findJacobCooper().catch(console.dir);

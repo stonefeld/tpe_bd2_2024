@@ -79,4 +79,28 @@ async function generateProductos() {
   }
 }
 
-export { generateFacturas, generateClientes, generateProductos };
+async function insertClientRedis(cliente, redis) {
+  const keyId = `clientes:${cliente.nombre}${cliente.apellido}`;
+  const keyClient = `clientes:${cliente.nro_cliente}`;
+
+  await redis.set(keyId, cliente.nro_cliente);
+
+  if (!(await redis.exists(keyClient))) {
+    const clienteCopy = { ...cliente };
+    const telefonos = clienteCopy.telefonos;
+    delete clienteCopy.telefonos;
+
+    await redis.hSet(keyClient, clienteCopy);
+    for (const [index, telefono] of telefonos.entries()) {
+      const key = `clientes:${clienteCopy.nro_cliente}:telefonos:${index}`;
+      await redis.hSet(key, telefono);
+    }
+  }
+}
+
+export {
+  generateFacturas,
+  generateClientes,
+  generateProductos,
+  insertClientRedis,
+};
