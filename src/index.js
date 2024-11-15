@@ -49,6 +49,58 @@ async function generateFacturas() {
   }
 }
 
+async function generateClientes() {
+  try {
+    // Cargar los datos de ambos archivos
+    const clientes = await loadCSVData("./src/datasets/e01_cliente.csv");
+    const telefonos = await loadCSVData("./src/datasets/e01_telefono.csv");
+    const result = clientes.map((cliente) => {
+      const telefonosCliente = telefonos.filter(
+        (telefono) => parseInt(telefono.nro_cliente) === parseInt(cliente.nro_cliente)
+      );
+      return {
+        nro_cliente: parseInt(cliente.nro_cliente),
+        nombre: cliente.nombre,
+        apellido: cliente.apellido,
+        direccion: cliente.direccion,
+        activo: parseInt(cliente.activo),
+        telefonos: telefonosCliente.map((telefono) => ({
+          codigo_area: parseInt(telefono.codigo_area),
+          nro_telefono: parseInt(telefono.nro_telefono),
+          tipo: telefono.tipo,
+        })),
+      };
+    });
+
+    return result;
+  } catch (err) {
+    console.error("Error:", err);
+  }
+
+}
+
+async function generateProductos() {
+  try {
+    // Cargar los datos del archivo CSV
+    const productos = await loadCSVData("./src/datasets/productos.csv");
+
+    // Transformar los datos en el formato deseado
+    const result = productos.map((producto) => ({
+      codigo_producto: parseInt(producto.codigo_producto),
+      marca: producto.marca,
+      nombre: producto.nombre,
+      descripcion: producto.descripcion,
+      precio: parseFloat(producto.precio),
+      stock: parseInt(producto.stock),
+    }));
+
+    console.log(result); // Mostrar el resultado
+    return result; // Devolver el array de productos
+  } catch (err) {
+    console.error("Error:", err);
+  }
+}
+
 // 0. Cargar los datos a la base de datos.
 // 3 colecciones: clientes, facturas y productos.
 async function loadData() {
@@ -57,10 +109,16 @@ async function loadData() {
   try {
     const database = mongo.db("db2");
     const facturas = database.collection("facturas");
+    const clientes = database.collection("clients");
+    const productos = database.collection("productos");
 
     const facturasArray = await generateFacturas();
-
+    const clientesArray = await generateClientes();
+    const productosArray = await generateProductos();
+    
     await facturas.insertMany(facturasArray);
+    await clientes.insertMany(clientesArray);
+    await productos.insertMany(productosArray);
   } finally {
     await mongo.close();
     await redis.quit();
