@@ -1,5 +1,8 @@
 import { MongoClient } from "mongodb";
 import { createClient } from "redis";
+import fs from "fs";
+import csv from "csv-parser";
+
 
 async function setClients() {
   const mongo = new MongoClient("mongodb://localhost:27017");
@@ -11,6 +14,55 @@ async function setClients() {
   await redis.connect();
 
   return { mongo, redis };
+}
+
+async function generateFacturas() {
+  try {
+    // Cargar los datos de ambos archivos
+    const facturas = await loadCSVData("./src/datasets/e01_factura.csv");
+    const detalles = await loadCSVData("./src/datasets/e01_detalle_factura.csv");
+
+    // Crear el array de facturas con subarrays de detalles
+    const result = facturas.map((factura) => {
+      const detallesFactura = detalles.filter(
+        (detalle) => detalle.nro_factura === factura.nro_factura
+      );
+      return {
+        nro_factura: parseInt(factura.nro_factura),
+        fecha: factura.fecha,
+        total_sin_iva: parseFloat(factura.total_sin_iva),
+        iva: parseFloat(factura.iva),
+        total_con_iva: parseFloat(factura.total_con_iva),
+        nro_cliente: parseInt(factura.nro_cliente),
+        detalles: detallesFactura.map((detalle) => ({
+          codigo_producto: parseInt(detalle.codigo_producto),
+          nro_item: parseInt(detalle.nro_item),
+          cantidad: parseFloat(detalle.cantidad),
+        })),
+      };
+    });
+
+    return result;
+  } catch (err) {
+    console.error("Error:", err);
+  }
+}
+
+// 0. Cargar los datos a la base de datos.
+// 3 colecciones: clientes, facturas y productos.
+async function loadData() {
+  const { mongo, redis } = await setClients();
+  try {
+    const database = mongo.db("db2");
+    const facturasCollection = database.collection("facturas");
+    const facturas = await generateFacturas();
+    facturasCollection.insertMany(facturas);
+    console.log(mongo.db("db2").collection("facturas").find({nro_factura: 1}).toArray());
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
+
 }
 
 // 1. Obtener los datos de los clientes junto con sus teléfonos.
@@ -69,5 +121,17 @@ async function findJacobCooper() {
   }
 }
 
+async function loadCSVData(filePath) {
+  const data = [];
+  return new Promise((resolve, reject) => {
+    fs.createReadStream(filePath)
+      .pipe(csv({ separator: ";" })) // Usamos ";" como separador
+      .on("data", (row) => data.push(row))
+      .on("end", () => resolve(data))
+      .on("error", (err) => reject(err));
+  });
+}
+
+loadData().catch(console.dir);
 clientAndCellphones().catch(console.dir);
 findJacobCooper().catch(console.dir);
