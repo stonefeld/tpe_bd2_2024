@@ -3,7 +3,6 @@ import { createClient } from "redis";
 import fs from "fs";
 import csv from "csv-parser";
 
-
 async function setClients() {
   const mongo = new MongoClient("mongodb://localhost:27017");
   const redis = createClient();
@@ -20,7 +19,9 @@ async function generateFacturas() {
   try {
     // Cargar los datos de ambos archivos
     const facturas = await loadCSVData("./src/datasets/e01_factura.csv");
-    const detalles = await loadCSVData("./src/datasets/e01_detalle_factura.csv");
+    const detalles = await loadCSVData(
+      "./src/datasets/e01_detalle_factura.csv"
+    );
 
     // Crear el array de facturas con subarrays de detalles
     const result = facturas.map((factura) => {
@@ -52,17 +53,18 @@ async function generateFacturas() {
 // 3 colecciones: clientes, facturas y productos.
 async function loadData() {
   const { mongo, redis } = await setClients();
+
   try {
     const database = mongo.db("db2");
-    const facturasCollection = database.collection("facturas");
-    const facturas = await generateFacturas();
-    facturasCollection.insertMany(facturas);
-    console.log(mongo.db("db2").collection("facturas").find({nro_factura: 1}).toArray());
+    const facturas = database.collection("facturas");
+
+    const facturasArray = await generateFacturas();
+
+    await facturas.insertMany(facturasArray);
   } finally {
     await mongo.close();
     await redis.quit();
   }
-
 }
 
 // 1. Obtener los datos de los clientes junto con sus teléfonos.
@@ -71,9 +73,11 @@ async function clientAndCellphones() {
 
   try {
     const database = mongo.db("db2");
-    const clients = database.collection("clients");
+    const clientes = database.collection("clients");
 
-    const result = await clients.find({}, { projection: { _id: 0 } }).toArray();
+    const result = await clientes
+      .find({}, { projection: { _id: 0 } })
+      .toArray();
 
     for (const client of result) {
       await redis.hSet(`clients:${client.nro_cliente}`, client);
@@ -133,5 +137,5 @@ async function loadCSVData(filePath) {
 }
 
 loadData().catch(console.dir);
-clientAndCellphones().catch(console.dir);
-findJacobCooper().catch(console.dir);
+// clientAndCellphones().catch(console.dir);
+// findJacobCooper().catch(console.dir);
