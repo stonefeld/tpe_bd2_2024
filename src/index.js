@@ -1,5 +1,135 @@
-import { select, Separator } from "@inquirer/prompts";
+import { input, search, select, Separator } from "@inquirer/prompts";
 import * as q from "./queries.js";
+import { setDbClients } from "./utils.js";
+
+async function pedirDatosCliente(cliente) {
+  const nombre = await input({
+    message: "Ingrese el nombre del cliente",
+    validate: (value) => value.trim() !== "",
+    default: cliente?.nombre,
+  });
+
+  const apellido = await input({
+    message: "Ingrese el apellido del cliente",
+    validate: (value) => value.trim() !== "",
+    default: cliente?.apellido,
+  });
+
+  const direccion = await input({
+    message: "Ingrese la dirección del cliente",
+    validate: (value) => value.trim() !== "",
+    default: cliente?.direccion,
+  });
+
+  const activo = await input({
+    message: "El cliente está activo?",
+    default: cliente?.activo,
+  });
+
+  return {
+    nombre,
+    apellido,
+    direccion,
+    activo,
+  };
+}
+
+async function crearCliente() {
+  const datos = await pedirDatosCliente();
+  await q.createClient(datos.nombre, datos.apellido, datos.direccion, datos.activo);
+}
+
+async function modificarCliente() {
+  let clientes = await q.getAllClientsByName();
+  clientes = clientes.map((c) => ({
+    ...c,
+    nombre_completo: `${c.nombre} ${c.apellido}`,
+  }));
+
+  const mapper = (c) => ({
+    name: c.nombre_completo,
+    value: c,
+    description: c.direccion,
+  });
+
+  const c = await search({
+    message: "Seleccione el cliente que desea modificar",
+    source: async (input) => {
+      if (!input) return clientes.map(mapper);
+      return clientes
+        .filter((c) =>
+          c.nombre_completo.toLowerCase().includes(input.toLowerCase()),
+        )
+        .map(mapper);
+    },
+  });
+
+  const datos = await pedirDatosCliente(c);
+  await q.updateClient(
+    c.nro_cliente,
+    datos.nombre,
+    datos.apellido,
+    datos.direccion,
+    datos.activo,
+  );
+}
+
+async function eliminarCliente() {
+  let clientes = await q.getAllClientsByName();
+  clientes = clientes.map((c) => ({
+    ...c,
+    nombre_completo: `${c.nombre} ${c.apellido}`,
+  }));
+
+  const mapper = (c) => ({
+    name: c.nombre_completo,
+    value: c,
+    description: c.direccion,
+  });
+
+  const c = await search({
+    message: "Seleccione el cliente que desea eliminar",
+    source: async (input) => {
+      if (!input) return clientes.map(mapper);
+      return clientes
+        .filter((c) =>
+          c.nombre_completo.toLowerCase().includes(input.toLowerCase()),
+        )
+        .map(mapper);
+    },
+  });
+
+  await q.deleteClient(c.nro_cliente);
+}
+
+async function clientsCRUD() {
+  try {
+    const operacion = await select({
+      message: "Seleccione la operación que desea realizar",
+      loop: false,
+      choices: [
+        {
+          name: "CREAR",
+          value: crearCliente,
+          description: "Permite crear un nuevo cliente",
+        },
+        {
+          name: "MODIFICAR",
+          value: modificarCliente,
+          description: "Permite modificar los datos de un cliente existente",
+        },
+        {
+          name: "ELIMINAR",
+          value: eliminarCliente,
+          description: "Permite eliminar un cliente existente",
+        },
+      ],
+    });
+
+    // Ejecutamos la query seleccionada
+    await operacion();
+  } catch {}
+}
 
 try {
   const query = await select({
@@ -85,6 +215,18 @@ try {
           "Se necesita una vista que devuelva todos los productos que aún no han sido facturados",
       },
       new Separator(),
+      {
+        name: "13) ABM de clientes",
+        value: clientsCRUD,
+        description:
+          "Permite crear nuevos clientes, eliminar y modificar los ya existentes",
+      },
+      // {
+      //   name: "14) ABM de productos",
+      //   value: productsCRUD,
+      //   description:
+      //     "Permite crear nuevos productos y modificar los ya existentes. Tener en cuenta que el precio de un producto es sin IVA",
+      // },
     ],
   });
 

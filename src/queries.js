@@ -602,27 +602,20 @@ export async function createClient(name, lastName, address, active) {
   try {
     const database = mongo.db("db2");
     const clientes = database.collection("clientes");
-    const new_nro_cliente = await getMaxClientNumber() + 1;
+    const newNrCliente = (await getMaxClientNumber()) + 1;
 
-    const result = await clientes.insertOne({
-      nro_cliente: new_nro_cliente,
+    const cliente = {
+      nro_cliente: newNrCliente,
       nombre: name,
       apellido: lastName,
       direccion: address,
       activo: active,
-    });
+    };
 
-    console.log("Cliente creado con ID:"+ result.insertedId+" nro_cleinete: "+new_nro_cliente);
+    await clientes.insertOne(cliente);
 
-    await redis.set(`clientes:names:${name}${lastName}`, new_nro_cliente);
-    await redis.set(`clientes:${new_nro_cliente}`, JSON.stringify({
-      nro_cliente: new_nro_cliente,
-      nombre: name,
-      apellido: lastName,
-      direccion: address,
-      activo: active,
-    }));
-
+    await redis.set(`clientes:names:${name}${lastName}`, newNrCliente);
+    await redis.set(`clientes:${newNrCliente}`, JSON.stringify(cliente));
   } catch (err) {
     console.error("Error ejecutando la consulta:", err);
   } finally {
@@ -638,22 +631,24 @@ async function getMaxClientNumber() {
     const database = mongo.db("db2");
     const clientes = database.collection("clientes");
 
-    const result = await clientes.aggregate([
-      {
-        $sort: { nro_cliente: -1 } 
-      },
-      {
-        $limit: 1 
-      },
-      {
-        $project: { _id: 0, nro_cliente: 1 } 
-      }
-    ]).toArray();
+    const result = await clientes
+      .aggregate([
+        {
+          $sort: { nro_cliente: -1 },
+        },
+        {
+          $limit: 1,
+        },
+        {
+          $project: { _id: 0, nro_cliente: 1 },
+        },
+      ])
+      .toArray();
 
     if (result.length > 0) {
-      return result[0].nro_cliente; 
+      return result[0].nro_cliente;
     } else {
-      return 0; 
+      return 0;
     }
   } catch (err) {
     console.error("Error ejecutando la consulta:", err);
@@ -663,23 +658,21 @@ async function getMaxClientNumber() {
   }
 }
 
-export async function deleteClient(nro_cliente) {
+export async function deleteClient(nrCliente) {
   const { mongo, redis } = await setDbClients();
 
   try {
     const database = mongo.db("db2");
     const clientes = database.collection("clientes");
 
-    const result = await clientes.deleteOne({
-      nro_cliente: nro_cliente,
-    });
+    await clientes.deleteOne({ nro_cliente: nrCliente });
 
-    console.log("Cliente eliminado con ID:"+ result.deletedId);
-
-    const old_client =JSON.parse(await redis.get(`clientes:${nro_cliente}`));
-    await redis.del(`clientes:names:${old_client.nombre}${old_client.apellido}`);
-    await redis.del(`clientes:${nro_cliente}`);
-
+    const oldClient = await redis.get(`clientes:${nrCliente}`);
+    if (oldClient) {
+      const client = JSON.parse(oldClient);
+      await redis.del(`clientes:names:${client.nombre}${client.apellido}`);
+      await redis.del(`clientes:${nrCliente}`);
+    }
   } catch (err) {
     console.error("Error ejecutando la consulta:", err);
   } finally {
@@ -688,40 +681,37 @@ export async function deleteClient(nro_cliente) {
   }
 }
 
-export async function updateClient(nro_cliente, name, lastName, address, active) {
+export async function updateClient(nrCliente, name, lastName, address, active) {
   const { mongo, redis } = await setDbClients();
 
   try {
     const database = mongo.db("db2");
     const clientes = database.collection("clientes");
 
-    const result = await clientes.updateOne(
-      { nro_cliente: nro_cliente },
-      {
-        $set: {
-          nombre: name,
-          apellido: lastName,
-          direccion: address,
-          activo: active,
-        },
-      },
-    );
-
-    console.log("Cliente actualizado con nro_cliente:"+ nro_cliente);
-
-    // Borro la cache vieja
-    const old_client =JSON.parse(await redis.get(`clientes:${nro_cliente}`));
-    await redis.del(`clientes:names:${old_client.nombre}${old_client.apellido}`);
-
-    // Reinserto con los datos actualizados
-    await redis.set(`clientes:names:${name}${lastName}`, nro_cliente); 
-    await redis.set(`clientes:${nro_cliente}`, JSON.stringify({
-      nro_cliente: nro_cliente,
+    const cliente = {
       nombre: name,
       apellido: lastName,
       direccion: address,
-      activo: active,}));
+      activo: active,
+    };
 
+    await clientes.updateOne({ nro_cliente: nrCliente }, { $set: cliente });
+
+    const oldClient = await redis.get(`clientes:${nrCliente}`);
+    if (oldClient) {
+      const cliente = JSON.parse(oldClient);
+      await redis.del(`clientes:names:${cliente.nombre}${cliente.apellido}`);
+    }
+
+    // Reinserto con los datos actualizados
+    await redis.set(`clientes:names:${name}${lastName}`, nrCliente);
+    await redis.set(
+      `clientes:${nrCliente}`,
+      JSON.stringify({
+        nro_cliente: nrCliente,
+        ...cliente,
+      }),
+    );
   } catch (err) {
     console.error("Error ejecutando la consulta:", err);
   } finally {
@@ -758,7 +748,14 @@ export async function createProduct(marca, nombre, descripcion, precio, stock) {
   }
 }
 
-export async function updateProduct(id, marca, nombre, descripcion, precio, stock) {
+export async function updateProduct(
+  id,
+  marca,
+  nombre,
+  descripcion,
+  precio,
+  stock,
+) {
   const { mongo, redis } = await setDbClients();
 
   try {
@@ -778,9 +775,32 @@ export async function updateProduct(id, marca, nombre, descripcion, precio, stoc
       },
     );
 
-    console.log("Update " + result.modifiedCount + " product" + (result.modifiedCount === 1 ? "" : "s"));
+    console.log(
+      "Update " +
+        result.modifiedCount +
+        " product" +
+        (result.modifiedCount === 1 ? "" : "s"),
+    );
   } catch (err) {
     console.error("Error ejecutando la consulta:", err);
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
+}
+
+// EXTRAS
+// Pedir todos los clientes ordenados por nombre
+export async function getAllClientsByName() {
+  const { mongo, redis } = await setDbClients();
+
+  try {
+    const database = mongo.db("db2");
+    const clientes = database.collection("clientes");
+
+    const result = await clientes.find().sort({ nombre: 1 }).toArray();
+
+    return result;
   } finally {
     await mongo.close();
     await redis.quit();
