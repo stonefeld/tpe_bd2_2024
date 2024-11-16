@@ -377,10 +377,7 @@ export async function billsWithIpsumProducts() {
 
     const result = await facturas
       .aggregate([
-        {
-          $unwind: "$detalles",
-        },
-
+        { $unwind: "$detalles" },
         {
           $lookup: {
             from: "productos",
@@ -389,13 +386,11 @@ export async function billsWithIpsumProducts() {
             as: "productos_detalle",
           },
         },
-
         {
           $match: {
             "productos_detalle.marca": { $regex: "Ipsum", $options: "i" },
           },
         },
-
         {
           $group: {
             _id: "$nro_factura",
@@ -417,7 +412,6 @@ export async function billsWithIpsumProducts() {
             nro_cliente: 1,
           },
         },
-
         {
           $sort: { nro_factura: 1 },
         },
@@ -464,9 +458,7 @@ export async function clientsWithTotalSpent() {
               nombre: "$nombre",
               apellido: "$apellido",
             },
-            totalGastado: {
-              $sum: "$facturas.total_con_iva",
-            },
+            totalGastado: { $sum: "$facturas.total_con_iva" },
           },
         },
         {
@@ -624,64 +616,7 @@ export async function createClient(name, lastName, address, active) {
   }
 }
 
-async function getMaxClientNumber() {
-  const { mongo, redis } = await setDbClients();
-
-  try {
-    const database = mongo.db("db2");
-    const clientes = database.collection("clientes");
-
-    const result = await clientes
-      .aggregate([
-        {
-          $sort: { nro_cliente: -1 },
-        },
-        {
-          $limit: 1,
-        },
-        {
-          $project: { _id: 0, nro_cliente: 1 },
-        },
-      ])
-      .toArray();
-
-    if (result.length > 0) {
-      return result[0].nro_cliente;
-    } else {
-      return 0;
-    }
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
-  } finally {
-    await mongo.close();
-    await redis.quit();
-  }
-}
-
-export async function deleteClient(nrCliente) {
-  const { mongo, redis } = await setDbClients();
-
-  try {
-    const database = mongo.db("db2");
-    const clientes = database.collection("clientes");
-
-    await clientes.deleteOne({ nro_cliente: nrCliente });
-
-    const oldClient = await redis.get(`clientes:${nrCliente}`);
-    if (oldClient) {
-      const client = JSON.parse(oldClient);
-      await redis.del(`clientes:names:${client.nombre}${client.apellido}`);
-      await redis.del(`clientes:${nrCliente}`);
-    }
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
-  } finally {
-    await mongo.close();
-    await redis.quit();
-  }
-}
-
-export async function updateClient(nrCliente, name, lastName, address, active) {
+export async function updateClient(id, name, lastName, address, active) {
   const { mongo, redis } = await setDbClients();
 
   try {
@@ -695,23 +630,46 @@ export async function updateClient(nrCliente, name, lastName, address, active) {
       activo: active,
     };
 
-    await clientes.updateOne({ nro_cliente: nrCliente }, { $set: cliente });
+    await clientes.updateOne({ nro_cliente: id }, { $set: cliente });
 
-    const oldClient = await redis.get(`clientes:${nrCliente}`);
+    const oldClient = await redis.get(`clientes:${id}`);
     if (oldClient) {
       const cliente = JSON.parse(oldClient);
       await redis.del(`clientes:names:${cliente.nombre}${cliente.apellido}`);
     }
 
     // Reinserto con los datos actualizados
-    await redis.set(`clientes:names:${name}${lastName}`, nrCliente);
+    await redis.set(`clientes:names:${name}${lastName}`, id);
     await redis.set(
-      `clientes:${nrCliente}`,
+      `clientes:${id}`,
       JSON.stringify({
-        nro_cliente: nrCliente,
+        nro_cliente: id,
         ...cliente,
       }),
     );
+  } catch (err) {
+    console.error("Error ejecutando la consulta:", err);
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
+}
+
+export async function deleteClient(id) {
+  const { mongo, redis } = await setDbClients();
+
+  try {
+    const database = mongo.db("db2");
+    const clientes = database.collection("clientes");
+
+    await clientes.deleteOne({ nro_cliente: id });
+
+    const oldClient = await redis.get(`clientes:${id}`);
+    if (oldClient) {
+      const client = JSON.parse(oldClient);
+      await redis.del(`clientes:names:${client.nombre}${client.apellido}`);
+      await redis.del(`clientes:${id}`);
+    }
   } catch (err) {
     console.error("Error ejecutando la consulta:", err);
   } finally {
@@ -797,10 +755,50 @@ export async function getAllClientsByName() {
   try {
     const database = mongo.db("db2");
     const clientes = database.collection("clientes");
+    return await clientes.find().sort({ nombre: 1 }).toArray();
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
+}
 
-    const result = await clientes.find().sort({ nombre: 1 }).toArray();
+// Pedir todos los productos ordenados por nombre
+export async function getAllProductsByName() {
+  const { mongo, redis } = await setDbClients();
 
-    return result;
+  try {
+    const database = mongo.db("db2");
+    const productos = database.collection("productos");
+    return await productos.find().sort({ marca: 1 }).toArray();
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
+}
+
+// Obtener el último número de cliente
+async function getMaxClientNumber() {
+  const { mongo, redis } = await setDbClients();
+
+  try {
+    const database = mongo.db("db2");
+    const clientes = database.collection("clientes");
+
+    const result = await clientes
+      .aggregate([
+        { $sort: { nro_cliente: -1 } },
+        { $limit: 1 },
+        { $project: { _id: 0, nro_cliente: 1 } },
+      ])
+      .toArray();
+
+    if (result.length > 0) {
+      return result[0].nro_cliente;
+    } else {
+      return 0;
+    }
+  } catch (err) {
+    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
