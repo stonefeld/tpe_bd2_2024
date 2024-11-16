@@ -101,6 +101,59 @@ async function findJacobCooper() {
   }
 }
 
+// 3. Mostrar cada teléfono junto con los datos del cliente.
+async function phonesAndClientData(params) {
+  const { mongo, redis } = await setDbClients();
+  try {
+    const database = mongo.db("db2");
+    const clientes = database.collection("clientes");
+
+    const result = await clientes.aggregate([
+      {
+        $unwind: "$telefonos", 
+      },
+      {
+        $project: {
+          _id: 0, // sacamos el id
+          codigo_area: "$telefonos.codigo_area",
+          nro_telefono: "$telefonos.nro_telefono",
+          tipo: "$telefonos.tipo",
+          nombre: "$nombre",
+          apellido: "$apellido",
+          direccion: "$direccion",
+          activo: "$activo",
+        },
+      },
+    ]).toArray(); 
+
+    console.log(result);
+  } catch (err) {
+    console.error("Error ejecutando la consulta:", err);
+  } finally {
+    await mongo.close(); // Cierra la conexión con MongoDB
+    await redis.quit(); // Cierra la conexión con Redis (si es necesario)
+  }
+  // db.clientes.aggregate([
+  //   {
+  //     $unwind: "$telefonos" // Descompone el array `telefonos` en múltiples documentos
+  //   },
+  //   {
+  //     $project: {
+  //       _id: 0, // Excluye el ID del resultado
+  //       codigo_area: "$telefonos.codigo_area",
+  //       nro_telefono: "$telefonos.nro_telefono",
+  //       tipo: "$telefonos.tipo",
+  //       nombre: "$nombre",
+  //       apellido: "$apellido",
+  //       direccion: "$direccion",
+  //       activo: "$activo"
+  //     }
+  //   }
+  // ]);
+  
+}
+
 await loadData().catch(console.dir);
 await clientAndCellphones().catch(console.dir);
+await phonesAndClientData().catch(console.dir);
 // await findJacobCooper().catch(console.dir);
