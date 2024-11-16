@@ -603,6 +603,58 @@ export async function deleteClient(id) {}
 export async function updateClient(id) {}
 
 // 14. Implementar la funcionalidad que permita crear nuevos productos y modificar los ya existentes. Tener en cuenta que el precio de un producto es sin IVA.
-export async function createProduct() {}
+export async function createProduct(marca, nombre, descripcion, precio, stock) {
+  const { mongo, redis } = await setDbClients();
 
-export async function updateProduct(id) {}
+  try {
+    const database = mongo.db("db2");
+    const productos = database.collection("productos");
+
+    const productLength = await productos.countDocuments();
+
+    const result = await productos.insertOne({
+      codigo_producto: productLength + 1,
+      marca,
+      nombre,
+      descripcion,
+      precio,
+      stock,
+    });
+
+    console.log("Product created with ObjectId: " + result.insertedId);
+  } catch (err) {
+    console.error("Error ejecutando la consulta:", err);
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
+}
+
+export async function updateProduct(id, marca, nombre, descripcion, precio, stock) {
+  const { mongo, redis } = await setDbClients();
+
+  try {
+    const database = mongo.db("db2");
+    const productos = database.collection("productos");
+
+    const result = await productos.updateOne(
+      { codigo_producto: id },
+      {
+        $set: {
+          marca,
+          nombre,
+          descripcion,
+          precio,
+          stock,
+        },
+      },
+    );
+
+    console.log("Update " + result.modifiedCount + " product" + (result.modifiedCount === 1 ? "" : "s"));
+  } catch (err) {
+    console.error("Error ejecutando la consulta:", err);
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
+}
