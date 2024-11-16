@@ -187,8 +187,42 @@ async function clientsWithoutBills() {
 
 // 6. Devolver todos los clientes, con la cantidad de facturas que tienen registradas (si no tienen considerar cantidad en 0)
 async function clientsWithBillsCount() {
+  const { mongo, redis } = await setDbClients();
 
+  try {
+    const database = mongo.db("db2");
+    const clientes = database.collection("clientes");
+
+    const result = await clientes.aggregate([
+      {
+        $lookup: {
+          from: "facturas", // Colección con la que se realiza el join
+          localField: "nro_cliente", // Campo de la colección clientes
+          foreignField: "nro_cliente", // Campo de la colección facturas
+          as: "facturas" // El alias para la información relacionada con facturas
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          nombre: 1,
+          apellido: 1,
+          nro_cliente: 1,
+          facturas_count: { $ifNull: [{ $size: "$facturas" }, 0] } // Contamos las facturas, y si no tiene, asignamos 0
+        }
+      }
+    ]).toArray();
+
+    console.log("Clientes con cantidad de facturas:");
+    console.log(result);
+  } catch (err) {
+    console.error("Error ejecutando la consulta:", err);
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
 }
+
 
 // 7. Listar los datos de todas las facturas que hayan sido compradas por el cliente de nombre"Kai" y apellido "Bullock".
 async function findKaiBullockBills() {
@@ -242,16 +276,16 @@ async function updateProduct(id) {
 
 }
 
-// await loadData().catch(console.dir);
-// await clientAndCellphones().catch(console.dir);
-// await findJacobCooper().catch(console.dir);
-// await phonesAndClientData().catch(console.dir);
+await loadData().catch(console.dir);
+await clientAndCellphones().catch(console.dir);
+await findJacobCooper().catch(console.dir);
+await phonesAndClientData().catch(console.dir);
 await clientsWithBills().catch(console.dir);
-// await clientsWithoutBills().catch(console.dir);
-// await clientsWithBillsCount().catch(console.dir);
-// await findKaiBullockBills().catch(console.dir);
-// await productsWithBills().catch(console.dir);
-// await billsWithIpsumProducts().catch(console.dir);
-// await clientsWithTotalSpent().catch(console.dir);
-// await billsOrderedByDateView().catch(console.dir);
-// await productsNotBilledView().catch(console.dir);
+await clientsWithoutBills().catch(console.dir);
+await clientsWithBillsCount().catch(console.dir);
+await findKaiBullockBills().catch(console.dir);
+await productsWithBills().catch(console.dir);
+await billsWithIpsumProducts().catch(console.dir);
+await clientsWithTotalSpent().catch(console.dir);
+await billsOrderedByDateView().catch(console.dir);
+await productsNotBilledView().catch(console.dir);
