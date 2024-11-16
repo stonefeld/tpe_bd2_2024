@@ -151,15 +151,15 @@ async function clientsWithBills() {
     const result = await clientes.aggregate([
       {
         $lookup: {
-          from: "facturas", 
-          localField: "nro_cliente", 
-          foreignField: "nro_cliente", 
-          as: "facturas" 
+          from: "facturas",
+          localField: "nro_cliente",
+          foreignField: "nro_cliente",
+          as: "facturas"
         }
       },
       {
         $match: {
-          "facturas.0": { $exists: true } 
+          "facturas.0": { $exists: true }
         }
       },
       {
@@ -286,7 +286,7 @@ async function findKaiBullockBills() {
 
         await redis.set(keyId, clientID);
         await redis.set(keyClient, JSON.stringify(result));
-      
+
         client = clientID;
       } else {
         console.log("Cliente no encontrado");
@@ -315,38 +315,38 @@ async function productsWithBills() {
 
     const result = await facturas.aggregate([
       {
-        $unwind: "$detalles" 
+        $unwind: "$detalles"
       },
       {
         $lookup: {
-          from: "productos", 
-          localField: "detalles.codigo_producto", 
-          foreignField: "codigo_producto", 
-          as: "producto_info" 
+          from: "productos",
+          localField: "detalles.codigo_producto",
+          foreignField: "codigo_producto",
+          as: "producto_info"
         }
       },
       {
-        $unwind: { path: "$producto_info", preserveNullAndEmptyArrays: false } 
+        $unwind: { path: "$producto_info", preserveNullAndEmptyArrays: false }
       },
       {
         $group: {
-          _id: "$producto_info.codigo_producto", 
+          _id: "$producto_info.codigo_producto",
           nombre_producto: { $first: "$producto_info.nombre" },
-          descripcion_producto: { $first: "$producto_info.descripcion" }, 
+          descripcion_producto: { $first: "$producto_info.descripcion" },
           precio_producto: { $first: "$producto_info.precio" }
         }
       },
       {
         $project: {
-          _id: 0, 
-          codigo_producto: "$_id", 
-          nombre_producto: 1, 
-          descripcion_producto: 1, 
+          _id: 0,
+          codigo_producto: "$_id",
+          nombre_producto: 1,
+          descripcion_producto: 1,
           precio_producto: 1
         }
       },
       {
-        $sort: { codigo_producto: 1 } 
+        $sort: { codigo_producto: 1 }
       }
     ]).toArray();
 
@@ -426,10 +426,6 @@ async function billsWithIpsumProducts() {
   }
 }
 
-
-
-
-
 // 10. Mostrar nombre y apellido de cada cliente junto con lo que gastó en total, con IVA incluido
 async function clientsWithTotalSpent() {
   const { mongo, redis } = await setDbClients();
@@ -486,12 +482,96 @@ async function clientsWithTotalSpent() {
 
 // 11. Se necesita una vista que devuelva los datos de las facturas ordenadas por fecha
 async function billsOrderedByDateView() {
+  const { mongo, redis } = await setDbClients();
 
+  try {
+    const database = mongo.db("db2");
+
+    const existingViews = await database.listCollections({ type: "view" }).toArray();
+    const viewExists = existingViews.some((view) => view.name === "facturas_ordenadas_por_fecha");
+
+    if (!viewExists) {
+      await database.createCollection("facturas_ordenadas_por_fecha", {
+        viewOn: "facturas",
+        pipeline: [
+          { $sort: { fecha: 1 } },
+          {
+            $project: {
+              _id: 0,
+              nro_factura: 1,
+              nro_cliente: 1,
+              fecha: 1,
+              total_con_iva: 1,
+              iva: 1,
+              total_sin_iva: 1,
+            }
+          }
+        ]
+      });
+    }
+
+    const result = await database.collection("facturas_ordenadas_por_fecha").find().toArray();
+    console.log(JSON.stringify(result, null, 2));
+
+  } catch (err) {
+    console.error("Error ejecutando la consulta:", err);
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
 }
 
 // 12. Se necesita una vista que devuelva todos los productos que aún no han sido facturados.
 async function productsNotBilledView() {
+  const { mongo, redis } = await setDbClients();
 
+  try {
+    const database = mongo.db("db2");
+
+    const existingViews = await database.listCollections({ type: "view" }).toArray();
+    const viewExists = existingViews.some((view) => view.name === "productos_no_facturados");
+
+    if (!viewExists) {
+      await database.createCollection("productos_no_facturados", {
+        viewOn: "productos",
+        pipeline: [
+          {
+            $lookup: {
+              from: "facturas",
+              localField: "codigo_producto",
+              foreignField: "detalles.codigo_producto",
+              as: "facturado_en"
+            }
+          },
+          {
+            $match: {
+              facturado_en: { $size: 0 }
+            }
+          },
+          {
+            $project: {
+              _id: 0,
+              codigo_producto: 1,
+              nombre: 1,
+              marca: 1,
+              descripcion: 1,
+              precio: 1,
+              stock: 1
+            }
+          }
+        ]
+      });
+    }
+
+    const result = await database.collection("productos_no_facturados").find().toArray();
+    console.log(result);
+
+  } catch (err) {
+    console.error("Error ejecutando la consulta:", err);
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
 }
 
 // 13. Implementar la funcionalidad que permita crear nuevos clientes, eliminar y modificar los ya existentes
@@ -524,8 +604,8 @@ async function updateProduct(id) {
 // await clientsWithoutBills().catch(console.dir);
 // await clientsWithBillsCount().catch(console.dir);
 // await findKaiBullockBills().catch(console.dir);
-await productsWithBills().catch(console.dir);
+// await productsWithBills().catch(console.dir);
 // await billsWithIpsumProducts().catch(console.dir);
 // await clientsWithTotalSpent().catch(console.dir);
 // await billsOrderedByDateView().catch(console.dir);
-// await productsNotBilledView().catch(console.dir);
+await productsNotBilledView().catch(console.dir);
