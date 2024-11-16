@@ -314,7 +314,56 @@ async function billsWithIpsumProducts() {
 
 // 10. Mostrar nombre y apellido de cada cliente junto con lo que gastó en total, con IVA incluido
 async function clientsWithTotalSpent() {
+  const { mongo, redis } = await setDbClients();
 
+  try {
+    const database = mongo.db("db2");
+    const clientes = database.collection("clientes");
+
+    const result = await clientes.aggregate([
+      {
+        $lookup: {
+          from: "facturas",
+          localField: "nro_cliente",
+          foreignField: "nro_cliente",
+          as: "facturas",
+        },
+      },
+      {
+        $unwind: {
+          path: "$facturas",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $group: {
+          _id: {
+            nro_cliente: "$nro_cliente",
+            nombre: "$nombre",
+            apellido: "$apellido",
+          },
+          totalGastado: {
+            $sum: "$facturas.total_con_iva",
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          nombre: "$_id.nombre",
+          apellido: "$_id.apellido",
+          totalGastado: 1,
+        },
+      },
+    ]).toArray();
+
+    console.log(result);
+  } catch (err) {
+    console.error("Error ejecutando la consulta:", err);
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
 }
 
 // 11. Se necesita una vista que devuelva los datos de las facturas ordenadas por fecha
@@ -356,9 +405,9 @@ async function updateProduct(id) {
 // await clientsWithBills().catch(console.dir);
 // await clientsWithoutBills().catch(console.dir);
 // await clientsWithBillsCount().catch(console.dir);
-await findKaiBullockBills().catch(console.dir);
+// await findKaiBullockBills().catch(console.dir);
 // await productsWithBills().catch(console.dir);
 // await billsWithIpsumProducts().catch(console.dir);
-// await clientsWithTotalSpent().catch(console.dir);
+await clientsWithTotalSpent().catch(console.dir);
 // await billsOrderedByDateView().catch(console.dir);
 // await productsNotBilledView().catch(console.dir);
