@@ -103,7 +103,7 @@ async function findJacobCooper() {
 }
 
 // 3. Mostrar cada teléfono junto con los datos del cliente.
-async function phonesAndClientData(params) {
+async function phonesAndClientData() {
   const { mongo, redis } = await setDbClients();
   try {
     const database = mongo.db("db2");
@@ -133,29 +133,87 @@ async function phonesAndClientData(params) {
   } catch (err) {
     console.error("Error ejecutando la consulta:", err);
   } finally {
-    await mongo.close(); // Cierra la conexión con MongoDB
-    await redis.quit(); // Cierra la conexión con Redis (si es necesario)
+    await mongo.close();
   }
-  // db.clientes.aggregate([
-  //   {
-  //     $unwind: "$telefonos" // Descompone el array `telefonos` en múltiples documentos
-  //   },
-  //   {
-  //     $project: {
-  //       _id: 0, // Excluye el ID del resultado
-  //       codigo_area: "$telefonos.codigo_area",
-  //       nro_telefono: "$telefonos.nro_telefono",
-  //       tipo: "$telefonos.tipo",
-  //       nombre: "$nombre",
-  //       apellido: "$apellido",
-  //       direccion: "$direccion",
-  //       activo: "$activo"
-  //     }
-  //   }
-  // ]);
+}
+
+// 4. Obtener todos los clientes que tengan registrada al menos una factura.
+async function clientsWithBills() {
+
+}
+
+// 5. Identificar todos los clientes que no tengan registrada ninguna factura.
+async function clientsWithoutBills() {
+
+}
+
+// 6. Devolver todos los clientes, con la cantidad de facturas que tienen registradas (si no tienen considerar cantidad en 0)
+async function clientsWithBillsCount() {
+
+}
+
+// 7. Listar los datos de todas las facturas que hayan sido compradas por el cliente de nombre"Kai" y apellido "Bullock".
+async function findKaiBullockBills() {
+
+}
+
+// 8. Seleccionar los productos que han sido facturados al menos 1 vez.
+async function productsWithBills() {
+
+}
+
+// 9. Listar los datos de todas las facturas que contengan productos de las marcas “Ipsum”.
+async function billsWithIpsumProducts() {
+
+}
+
+// 10. Mostrar nombre y apellido de cada cliente junto con lo que gastó en total, con IVA incluido
+async function clientsWithTotalSpent() {
+
+}
+
+// 11. Se necesita una vista que devuelva los datos de las facturas ordenadas por fecha
+async function billsOrderedByDateView() {
+
+}
+
+// 12. Se necesita una vista que devuelva todos los productos que aún no han sido facturados.
+async function productsNotBilledView() {
+
+}
+
+// 13. Implementar la funcionalidad que permita crear nuevos clientes, eliminar y modificar los ya existentes
+async function createClient() {
+
+}
+
+async function deleteClient(id) {
+
+}
+
+async function updateClient(id) {
+
+}
+
+// 14. Implementar la funcionalidad que permita crear nuevos productos y modificar los ya existentes. Tener en cuenta que el precio de un producto es sin IVA.
+async function createProduct() {
+
+}
+
+async function updateProduct(id) {
+
 }
 
 await loadData().catch(console.dir);
-// await clientAndCellphones().catch(console.dir);
-// await findJacobCooper().catch(console.dir);
+await clientAndCellphones().catch(console.dir);
+await findJacobCooper().catch(console.dir);
 await phonesAndClientData().catch(console.dir);
+await clientsWithBills().catch(console.dir);
+await clientsWithoutBills().catch(console.dir);
+await clientsWithBillsCount().catch(console.dir);
+await findKaiBullockBills().catch(console.dir);
+await productsWithBills().catch(console.dir);
+await billsWithIpsumProducts().catch(console.dir);
+await clientsWithTotalSpent().catch(console.dir);
+await billsOrderedByDateView().catch(console.dir);
+await productsNotBilledView().catch(console.dir);
