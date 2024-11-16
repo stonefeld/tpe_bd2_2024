@@ -1,6 +1,6 @@
 import { loadCSVData } from "./utils.js";
 
-async function generateFacturas() {
+export async function generateFacturas() {
   try {
     const facturas = await loadCSVData("./datasets/e01_factura.csv");
     const detalles = await loadCSVData("./datasets/e01_detalle_factura.csv");
@@ -30,7 +30,7 @@ async function generateFacturas() {
   }
 }
 
-async function generateClientes() {
+export async function generateClientes() {
   try {
     const clientes = await loadCSVData("./datasets/e01_cliente.csv");
     const telefonos = await loadCSVData("./datasets/e01_telefono.csv");
@@ -60,7 +60,7 @@ async function generateClientes() {
   }
 }
 
-async function generateProductos() {
+export async function generateProductos() {
   try {
     const productos = await loadCSVData("./datasets/e01_producto.csv");
 
@@ -79,8 +79,8 @@ async function generateProductos() {
   }
 }
 
-async function insertClientRedis(cliente, redis) {
-  const keyId = `clientes:${cliente.nombre}${cliente.apellido}`;
+export async function insertClientRedis(cliente, redis) {
+  const keyId = `clientes:names:${cliente.nombre}${cliente.apellido}`;
   const keyClient = `clientes:${cliente.nro_cliente}`;
 
   await redis.set(keyId, cliente.nro_cliente);
@@ -97,10 +97,3 @@ async function insertClientRedis(cliente, redis) {
     }
   }
 }
-
-export {
-  generateFacturas,
-  generateClientes,
-  generateProductos,
-  insertClientRedis,
-};

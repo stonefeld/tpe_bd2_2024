@@ -47,7 +47,11 @@ async function clientAndCellphones() {
       .toArray();
 
     for (const client of result) {
-      await insertClientRedis(client, redis);
+      await redis.set(
+        `clientes:names:${client.nombre}${client.apellido}`,
+        client.nro_cliente,
+      );
+      await redis.set(`clientes:${client.nro_cliente}`, JSON.stringify(client));
     }
 
     console.log(JSON.stringify(result, null, 2));
@@ -73,28 +77,25 @@ async function findJacobCooper() {
           nombre: "Jacob",
           apellido: "Cooper",
         },
-        { projection: { _id: 0 } }
+        { projection: { _id: 0 } },
       );
+
       if (result) {
-        await insertClientRedis(result, redis);
+        clientID = result.nro_cliente;
+
+        const keyId = `clientes:names:${result.nombre}${result.apellido}`;
+        const keyClient = `clientes:${result.nro_cliente}`;
+
+        await redis.set(keyId, clientID);
+        await redis.set(keyClient, JSON.stringify(result));
       } else {
         console.log("No se encontró el cliente");
         return;
       }
     }
 
-    const client = await redis.hGetAll(`clientes:${clientID}`);
-    const telefonosKeys = await redis.keys(`clientes:${clientID}:telefonos:*`);
-
-    client.telefonos = [];
-    for (const key of telefonosKeys) {
-      client.telefonos.push(await redis.hGetAll(key));
-    }
-
-    console.log({
-      nro_cliente: client.nro_cliente,
-      telefonos: client.telefonos,
-    });
+    const cliente = await redis.get(`clientes:${clientID}`);
+    console.log(JSON.parse(cliente));
   } finally {
     await mongo.close();
     await redis.quit();
@@ -108,23 +109,25 @@ async function phonesAndClientData(params) {
     const database = mongo.db("db2");
     const clientes = database.collection("clientes");
 
-    const result = await clientes.aggregate([
-      {
-        $unwind: "$telefonos", 
-      },
-      {
-        $project: {
-          _id: 0, // sacamos el id
-          codigo_area: "$telefonos.codigo_area",
-          nro_telefono: "$telefonos.nro_telefono",
-          tipo: "$telefonos.tipo",
-          nombre: "$nombre",
-          apellido: "$apellido",
-          direccion: "$direccion",
-          activo: "$activo",
+    const result = await clientes
+      .aggregate([
+        {
+          $unwind: "$telefonos",
         },
-      },
-    ]).toArray(); 
+        {
+          $project: {
+            _id: 0, // sacamos el id
+            codigo_area: "$telefonos.codigo_area",
+            nro_telefono: "$telefonos.nro_telefono",
+            tipo: "$telefonos.tipo",
+            nombre: "$nombre",
+            apellido: "$apellido",
+            direccion: "$direccion",
+            activo: "$activo",
+          },
+        },
+      ])
+      .toArray();
 
     console.log(result);
   } catch (err) {
@@ -150,10 +153,9 @@ async function phonesAndClientData(params) {
   //     }
   //   }
   // ]);
-  
 }
 
 await loadData().catch(console.dir);
-await clientAndCellphones().catch(console.dir);
-await phonesAndClientData().catch(console.dir);
+// await clientAndCellphones().catch(console.dir);
 // await findJacobCooper().catch(console.dir);
+await phonesAndClientData().catch(console.dir);

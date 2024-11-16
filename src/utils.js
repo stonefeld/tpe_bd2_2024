@@ -3,7 +3,7 @@ import { createClient } from "redis";
 import fs from "fs";
 import csv from "csv-parser";
 
-async function setDbClients() {
+export async function setDbClients() {
   const mongo = new MongoClient("mongodb://localhost:27017");
   const redis = createClient();
 
@@ -15,7 +15,7 @@ async function setDbClients() {
   return { mongo, redis };
 }
 
-async function loadCSVData(filePath) {
+export async function loadCSVData(filePath) {
   const data = [];
   return new Promise((resolve, reject) => {
     fs.createReadStream(filePath)
@@ -25,5 +25,3 @@ async function loadCSVData(filePath) {
       .on("error", (err) => reject(err));
   });
 }
-
-export { setDbClients, loadCSVData };
