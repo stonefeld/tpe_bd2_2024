@@ -596,11 +596,139 @@ export async function productsNotBilledView() {
 }
 
 // 13. Implementar la funcionalidad que permita crear nuevos clientes, eliminar y modificar los ya existentes
-export async function createClient() {}
+export async function createClient(name, lastName, address, active) {
+  const { mongo, redis } = await setDbClients();
 
-export async function deleteClient(id) {}
+  try {
+    const database = mongo.db("db2");
+    const clientes = database.collection("clientes");
+    const new_nro_cliente = await getMaxClientNumber() + 1;
 
-export async function updateClient(id) {}
+    const result = await clientes.insertOne({
+      nro_cliente: new_nro_cliente,
+      nombre: name,
+      apellido: lastName,
+      direccion: address,
+      activo: active,
+    });
+
+    console.log("Cliente creado con ID:"+ result.insertedId+" nro_cleinete: "+new_nro_cliente);
+
+    await redis.set(`clientes:names:${name}${lastName}`, new_nro_cliente);
+    await redis.set(`clientes:${new_nro_cliente}`, JSON.stringify({
+      nro_cliente: new_nro_cliente,
+      nombre: name,
+      apellido: lastName,
+      direccion: address,
+      activo: active,
+    }));
+
+  } catch (err) {
+    console.error("Error ejecutando la consulta:", err);
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
+}
+
+async function getMaxClientNumber() {
+  const { mongo, redis } = await setDbClients();
+
+  try {
+    const database = mongo.db("db2");
+    const clientes = database.collection("clientes");
+
+    const result = await clientes.aggregate([
+      {
+        $sort: { nro_cliente: -1 } 
+      },
+      {
+        $limit: 1 
+      },
+      {
+        $project: { _id: 0, nro_cliente: 1 } 
+      }
+    ]).toArray();
+
+    if (result.length > 0) {
+      return result[0].nro_cliente; 
+    } else {
+      return 0; 
+    }
+  } catch (err) {
+    console.error("Error ejecutando la consulta:", err);
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
+}
+
+export async function deleteClient(nro_cliente) {
+  const { mongo, redis } = await setDbClients();
+
+  try {
+    const database = mongo.db("db2");
+    const clientes = database.collection("clientes");
+
+    const result = await clientes.deleteOne({
+      nro_cliente: nro_cliente,
+    });
+
+    console.log("Cliente eliminado con ID:"+ result.deletedId);
+
+    const old_client =JSON.parse(await redis.get(`clientes:${nro_cliente}`));
+    await redis.del(`clientes:names:${old_client.nombre}${old_client.apellido}`);
+    await redis.del(`clientes:${nro_cliente}`);
+
+  } catch (err) {
+    console.error("Error ejecutando la consulta:", err);
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
+}
+
+export async function updateClient(nro_cliente, name, lastName, address, active) {
+  const { mongo, redis } = await setDbClients();
+
+  try {
+    const database = mongo.db("db2");
+    const clientes = database.collection("clientes");
+
+    const result = await clientes.updateOne(
+      { nro_cliente: nro_cliente },
+      {
+        $set: {
+          nombre: name,
+          apellido: lastName,
+          direccion: address,
+          activo: active,
+        },
+      },
+    );
+
+    console.log("Cliente actualizado con nro_cliente:"+ nro_cliente);
+
+    // Borro la cache vieja
+    const old_client =JSON.parse(await redis.get(`clientes:${nro_cliente}`));
+    await redis.del(`clientes:names:${old_client.nombre}${old_client.apellido}`);
+
+    // Reinserto con los datos actualizados
+    await redis.set(`clientes:names:${name}${lastName}`, nro_cliente); 
+    await redis.set(`clientes:${nro_cliente}`, JSON.stringify({
+      nro_cliente: nro_cliente,
+      nombre: name,
+      apellido: lastName,
+      direccion: address,
+      activo: active,}));
+
+  } catch (err) {
+    console.error("Error ejecutando la consulta:", err);
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
+}
 
 // 14. Implementar la funcionalidad que permita crear nuevos productos y modificar los ya existentes. Tener en cuenta que el precio de un producto es sin IVA.
 export async function createProduct(marca, nombre, descripcion, precio, stock) {
