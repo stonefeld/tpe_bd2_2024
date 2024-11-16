@@ -16,6 +16,10 @@ async function loadData() {
     await database.dropDatabase();
     await redis.flushAll();
 
+
+    await database.dropDatabase();
+    await redis.flushAll();
+
     const facturas = database.collection("facturas");
     const clientes = database.collection("clientes");
     const productos = database.collection("productos");
@@ -126,9 +130,8 @@ async function phonesAndClientData() {
           },
         },
       ])
-      .toArray();
-
-    console.log(result);
+      
+    const productos = database.collection("productos");
   } catch (err) {
     console.error("Error ejecutando la consulta:", err);
   } finally {
@@ -357,12 +360,75 @@ async function productsWithBills() {
   }
 }
 
-
-
-// 9. Listar los datos de todas las facturas que contengan productos de las marcas “Ipsum”.
+// 9. Listar los datos de todas las facturas que contengan productos de las marcas que incluyan “Ipsum”.
 async function billsWithIpsumProducts() {
+  const { mongo, redis } = await setDbClients();
 
+  try {
+    const database = mongo.db("db2");
+    const facturas = database.collection("facturas");
+
+    const result = await facturas.aggregate([
+      
+      {
+        $unwind: "$detalles", 
+      },
+      
+      {
+        $lookup: {
+          from: "productos", 
+          localField: "detalles.codigo_producto", 
+          foreignField: "codigo_producto", 
+          as: "productos_detalle", 
+        },
+      },
+     
+      {
+        $match: {
+          "productos_detalle.marca": { $regex: "Ipsum", $options: "i" }, 
+        },
+      },
+      
+      {
+        $group: {
+          _id: "$nro_factura", 
+          fecha: { $first: "$fecha" },
+          total_sin_iva: { $first: "$total_sin_iva" },
+          iva: { $first: "$iva" }, 
+          total_con_iva: { $first: "$total_con_iva" }, 
+          nro_cliente: { $first: "$nro_cliente" }, 
+        },
+      },
+      {
+        $project: {
+         _id: 0,
+         nro_factura: "$_id", 
+         fecha: 1,
+         total_sin_iva: 1,
+         iva: 1,
+         total_con_iva: 1,
+         nro_cliente: 1
+        },
+      },
+     
+      {
+        $sort: { nro_factura: 1 }
+      }
+    ]).toArray();
+
+    console.log("Facturas con productos que contienen 'Ipsum' en la marca:");
+    console.log(JSON.stringify(result, null, 2));
+  } catch (err) {
+    console.error("Error ejecutando la consulta:", err);
+  } finally {
+    await mongo.close();
+    await redis.quit();
+  }
 }
+
+
+
+
 
 // 10. Mostrar nombre y apellido de cada cliente junto con lo que gastó en total, con IVA incluido
 async function clientsWithTotalSpent() {
