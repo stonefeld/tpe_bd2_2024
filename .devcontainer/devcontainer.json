@@ -1,0 +1,10 @@
+{
+  "name": "entrega-tpo-bd2-grupo10",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "bash -i -c 'npm i; docker run --name bd2-mongo -p 27017:27017 -d mongo; docker run --name bd2-redis -p 6379:6379 -d redis'",
+  "postStartCommand": "bash -i -c 'docker start bd2-mongo bd2-redis'",
+}
