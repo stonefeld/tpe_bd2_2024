@@ -1,7 +1,6 @@
 import { input, search } from "@inquirer/prompts";
 import * as queries from "./queries.js";
 
-// Pedir datos interactivamente
 async function pedirDatosCliente(cliente) {
   const nombre = await input({
     message: "Ingrese el nombre del cliente",
@@ -22,7 +21,8 @@ async function pedirDatosCliente(cliente) {
   });
 
   const activo = await input({
-    message: "El cliente está activo?",
+    message: "Ingrese el activo del cliente",
+    validate: (value) => !isNaN(value) && value >= 0,
     default: cliente?.activo,
   });
 
@@ -55,13 +55,13 @@ async function pedirDatosProducto(producto) {
 
   const precio = await input({
     message: "Ingrese el precio del producto",
-    validate: (value) => !isNaN(value),
+    validate: (value) => !isNaN(value) && value >= 0,
     default: producto?.precio,
   });
 
   const stock = await input({
     message: "Ingrese el stock del producto",
-    validate: (value) => !isNaN(value),
+    validate: (value) => !isNaN(value) && value >= 0,
     default: producto?.stock,
   });
 
@@ -81,7 +81,7 @@ export async function createClient() {
     datos.nombre,
     datos.apellido,
     datos.direccion,
-    datos.activo,
+    datos.activo
   );
 }
 
@@ -104,7 +104,7 @@ export async function updateClient() {
       if (!input) return clientes.map(mapper);
       return clientes
         .filter((c) =>
-          c.nombre_completo.toLowerCase().includes(input.toLowerCase()),
+          c.nombre_completo.toLowerCase().includes(input.toLowerCase())
         )
         .map(mapper);
     },
@@ -116,7 +116,7 @@ export async function updateClient() {
     datos.nombre,
     datos.apellido,
     datos.direccion,
-    datos.activo,
+    datos.activo
   );
 }
 
@@ -139,7 +139,7 @@ export async function deleteClient() {
       if (!input) return clientes.map(mapper);
       return clientes
         .filter((c) =>
-          c.nombre_completo.toLowerCase().includes(input.toLowerCase()),
+          c.nombre_completo.toLowerCase().includes(input.toLowerCase())
         )
         .map(mapper);
     },
@@ -156,7 +156,7 @@ export async function createProduct() {
     datos.nombre,
     datos.descripcion,
     datos.precio,
-    datos.stock,
+    datos.stock
   );
 }
 
@@ -177,7 +177,9 @@ export async function updateProduct() {
     source: async (input) => {
       if (!input) return productos.map(mapper);
       return productos
-        .filter((p) => p.nombre_completo.toLowerCase().includes(input.toLowerCase()))
+        .filter((p) =>
+          p.nombre_completo.toLowerCase().includes(input.toLowerCase())
+        )
         .map(mapper);
     },
   });
@@ -189,6 +191,6 @@ export async function updateProduct() {
     datos.nombre,
     datos.descripcion,
     datos.precio,
-    datos.stock,
+    datos.stock
   );
 }

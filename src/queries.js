@@ -16,9 +16,6 @@ export async function loadData() {
     await database.dropDatabase();
     await redis.flushAll();
 
-    await database.dropDatabase();
-    await redis.flushAll();
-
     const facturas = database.collection("facturas");
     const clientes = database.collection("clientes");
     const productos = database.collection("productos");
@@ -48,12 +45,12 @@ export async function clientAndCellphones() {
       .find({}, { projection: { _id: 0 } })
       .toArray();
 
-    for (const client of result) {
-      await redis.set(
-        `clientes:names:${client.nombre}${client.apellido}`,
-        client.nro_cliente,
-      );
-      await redis.set(`clientes:${client.nro_cliente}`, JSON.stringify(client));
+    for (const cliente of result) {
+      const keyId = `clientes:names:${cliente.nombre}${cliente.apellido}`;
+      const keyClient = `clientes:${cliente.nro_cliente}`;
+
+      await redis.set(keyId, cliente.nro_cliente);
+      await redis.set(keyClient, JSON.stringify(cliente));
     }
 
     console.log(JSON.stringify(result, null, 2));
@@ -79,7 +76,7 @@ export async function findJacobCooper() {
           nombre: "Jacob",
           apellido: "Cooper",
         },
-        { projection: { _id: 0 } },
+        { projection: { _id: 0 } }
       );
 
       if (result) {
@@ -91,7 +88,7 @@ export async function findJacobCooper() {
         await redis.set(keyId, clientID);
         await redis.set(keyClient, JSON.stringify(result));
       } else {
-        console.log("No se encontró el cliente");
+        console.log("No se encontró al cliente");
         return;
       }
     }
@@ -132,8 +129,6 @@ export async function phonesAndClientData() {
       .toArray();
 
     console.log(JSON.stringify(result, null, 2));
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
@@ -175,8 +170,6 @@ export async function clientsWithBills() {
       .toArray();
 
     console.log(JSON.stringify(result, null, 2));
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
@@ -217,8 +210,6 @@ export async function clientsWithoutBills() {
       .toArray();
 
     console.log(JSON.stringify(result, null, 2));
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
@@ -256,8 +247,6 @@ export async function clientsWithBillsCount() {
       .toArray();
 
     console.log(JSON.stringify(result, null, 2));
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
@@ -278,7 +267,7 @@ export async function findKaiBullockBills() {
     if (!client) {
       const result = await clientes.findOne(
         { nombre: "Kai", apellido: "Bullock" },
-        { projection: { _id: 0 } },
+        { projection: { _id: 0 } }
       );
 
       if (result) {
@@ -292,7 +281,7 @@ export async function findKaiBullockBills() {
 
         client = clientID;
       } else {
-        console.log("Cliente no encontrado");
+        console.log("No se encontr al cliente");
         return;
       }
     }
@@ -359,8 +348,6 @@ export async function productsWithBills() {
       .toArray();
 
     console.log(JSON.stringify(result, null, 2));
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
@@ -419,8 +406,6 @@ export async function billsWithIpsumProducts() {
       .toArray();
 
     console.log(JSON.stringify(result, null, 2));
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
@@ -473,8 +458,6 @@ export async function clientsWithTotalSpent() {
       .toArray();
 
     console.log(JSON.stringify(result, null, 2));
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
@@ -492,7 +475,7 @@ export async function billsOrderedByDateView() {
       .listCollections({ type: "view" })
       .toArray();
     const viewExists = existingViews.some(
-      (view) => view.name === "facturas_ordenadas_por_fecha",
+      (view) => view.name === "facturas_ordenadas_por_fecha"
     );
 
     if (!viewExists) {
@@ -520,8 +503,6 @@ export async function billsOrderedByDateView() {
       .find()
       .toArray();
     console.log(JSON.stringify(result, null, 2));
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
@@ -539,7 +520,7 @@ export async function productsNotBilledView() {
       .listCollections({ type: "view" })
       .toArray();
     const viewExists = existingViews.some(
-      (view) => view.name === "productos_no_facturados",
+      (view) => view.name === "productos_no_facturados"
     );
 
     if (!viewExists) {
@@ -579,8 +560,6 @@ export async function productsNotBilledView() {
       .find()
       .toArray();
     console.log(JSON.stringify(result, null, 2));
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
@@ -588,7 +567,7 @@ export async function productsNotBilledView() {
 }
 
 // 13. Implementar la funcionalidad que permita crear nuevos clientes, eliminar y modificar los ya existentes
-export async function createClient(name, lastName, address, active) {
+export async function createClient(nombre, apellido, direccion, activo) {
   const { mongo, redis } = await setDbClients();
 
   try {
@@ -598,25 +577,23 @@ export async function createClient(name, lastName, address, active) {
 
     const cliente = {
       nro_cliente: newNrCliente,
-      nombre: name,
-      apellido: lastName,
-      direccion: address,
-      activo: active,
+      nombre: nombre,
+      apellido: apellido,
+      direccion: direccion,
+      activo: activo,
     };
 
     await clientes.insertOne(cliente);
 
-    await redis.set(`clientes:names:${name}${lastName}`, newNrCliente);
+    await redis.set(`clientes:names:${nombre}${apellido}`, newNrCliente);
     await redis.set(`clientes:${newNrCliente}`, JSON.stringify(cliente));
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
   }
 }
 
-export async function updateClient(id, name, lastName, address, active) {
+export async function updateClient(id, nombre, apellido, direccion, activo) {
   const { mongo, redis } = await setDbClients();
 
   try {
@@ -624,10 +601,10 @@ export async function updateClient(id, name, lastName, address, active) {
     const clientes = database.collection("clientes");
 
     const cliente = {
-      nombre: name,
-      apellido: lastName,
-      direccion: address,
-      activo: active,
+      nombre: nombre,
+      apellido: apellido,
+      direccion: direccion,
+      activo: activo,
     };
 
     await clientes.updateOne({ nro_cliente: id }, { $set: cliente });
@@ -638,17 +615,14 @@ export async function updateClient(id, name, lastName, address, active) {
       await redis.del(`clientes:names:${cliente.nombre}${cliente.apellido}`);
     }
 
-    // Reinserto con los datos actualizados
-    await redis.set(`clientes:names:${name}${lastName}`, id);
+    await redis.set(`clientes:names:${nombre}${apellido}`, id);
     await redis.set(
       `clientes:${id}`,
       JSON.stringify({
         nro_cliente: id,
         ...cliente,
-      }),
+      })
     );
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
@@ -670,8 +644,6 @@ export async function deleteClient(id) {
       await redis.del(`clientes:names:${client.nombre}${client.apellido}`);
       await redis.del(`clientes:${id}`);
     }
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
@@ -698,8 +670,6 @@ export async function createProduct(marca, nombre, descripcion, precio, stock) {
     });
 
     console.log("Product created with ObjectId: " + result.insertedId);
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
@@ -712,7 +682,7 @@ export async function updateProduct(
   nombre,
   descripcion,
   precio,
-  stock,
+  stock
 ) {
   const { mongo, redis } = await setDbClients();
 
@@ -730,17 +700,15 @@ export async function updateProduct(
           precio,
           stock,
         },
-      },
+      }
     );
 
     console.log(
       "Update " +
         result.modifiedCount +
         " product" +
-        (result.modifiedCount === 1 ? "" : "s"),
+        (result.modifiedCount === 1 ? "" : "s")
     );
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();
@@ -797,8 +765,6 @@ async function getMaxClientNumber() {
     } else {
       return 0;
     }
-  } catch (err) {
-    console.error("Error ejecutando la consulta:", err);
   } finally {
     await mongo.close();
     await redis.quit();

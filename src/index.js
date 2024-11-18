@@ -3,55 +3,50 @@ import * as queries from "./queries.js";
 import * as cruds from "./cruds.js";
 
 async function clientsCRUD() {
-  try {
-    const action = await select({
-      message: "Seleccione la operación que desea realizar",
-      loop: false,
-      choices: [
-        {
-          name: "CREAR",
-          value: cruds.createClient,
-          description: "Permite crear un nuevo cliente",
-        },
-        {
-          name: "MODIFICAR",
-          value: cruds.updateClient,
-          description: "Permite modificar los datos de un cliente existente",
-        },
-        {
-          name: "ELIMINAR",
-          value: cruds.deleteClient,
-          description: "Permite eliminar un cliente existente",
-        },
-      ],
-    });
+  const action = await select({
+    message: "Seleccione la operación que desea realizar",
+    loop: false,
+    choices: [
+      {
+        name: "CREAR",
+        value: cruds.createClient,
+        description: "Permite crear un nuevo cliente",
+      },
+      {
+        name: "MODIFICAR",
+        value: cruds.updateClient,
+        description: "Permite modificar los datos de un cliente existente",
+      },
+      {
+        name: "ELIMINAR",
+        value: cruds.deleteClient,
+        description: "Permite eliminar un cliente existente",
+      },
+    ],
+  });
 
-    await action();
-  } catch {}
+  await action();
 }
 
 async function productsCRUD() {
-  try {
-    const action = await select({
-      message: "Seleccione la operación que desea realizar",
-      loop: false,
-      choices: [
-        {
-          name: "CREAR",
-          value: cruds.createProduct,
-          description: "Permite crear un nuevo producto",
-        },
-        {
-          name: "MODIFICAR",
-          value: cruds.updateProduct,
-          description: "Permite modificar los datos de un producto existente",
-        },
-      ],
-    });
+  const action = await select({
+    message: "Seleccione la operación que desea realizar",
+    loop: false,
+    choices: [
+      {
+        name: "CREAR",
+        value: cruds.createProduct,
+        description: "Permite crear un nuevo producto",
+      },
+      {
+        name: "MODIFICAR",
+        value: cruds.updateProduct,
+        description: "Permite modificar los datos de un producto existente",
+      },
+    ],
+  });
 
-    // Ejecutamos la query seleccionada
-    await action();
-  } catch {}
+  await action();
 }
 
 try {
@@ -62,7 +57,8 @@ try {
       {
         name: " 0) Cargar datos",
         value: queries.loadData,
-        description: "Carga los datos de los archivos CSV. Se limpia la base de datos antes de cargar los datos",
+        description:
+          "Carga los datos de los archivos CSV. Se limpia la base de datos antes de cargar los datos",
       },
       new Separator(),
       {
@@ -153,6 +149,11 @@ try {
     ],
   });
 
-  // Ejecutamos la query seleccionada
   await query();
-} catch {}
+} catch (error) {
+  let code = 1;
+  if (error.name != "ExitPromptError")
+    console.error("Ocurrió un error:", error.message);
+  else code = 0;
+  process.exit(code);
+}
